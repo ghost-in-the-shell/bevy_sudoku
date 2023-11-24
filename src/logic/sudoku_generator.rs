@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use sudoku::Sudoku;
 
-use crate::logic::board::{Coordinates, Value};
+use crate::logic::board::{Cell, Coordinates, FixedValue, Value};
 
 pub struct GeneratorPlugin;
 
@@ -10,13 +10,23 @@ impl Plugin for GeneratorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PuzzleState>()
             .add_event::<NewPuzzle>()
+            .add_event::<ResetPuzzle>()
+            .add_event::<SolvePuzzle>()
             .add_systems(Startup, first_sudoku)
-            .add_systems(Update, generate_sudoku);
+            .add_systems(Update, (generate_sudoku, fill_puzzle).chain())
+            .add_systems(Update, (reset_sudoku, solve_sudoku));
     }
 }
 
-#[derive(Event)]
+/// Marker component for NewPuzzle
+#[derive(Default, Clone, Event)]
 pub struct NewPuzzle;
+/// Marker component for ResetPuzzle
+#[derive(Default, Clone, Event)]
+pub struct ResetPuzzle;
+/// Marker component for SolvePuzzle
+#[derive(Default, Clone, Event)]
+pub struct SolvePuzzle;
 
 #[derive(Default, Resource)]
 struct PuzzleState {
@@ -68,5 +78,56 @@ fn generate_sudoku(
         let initial = Sudoku::generate_unique_from(completed);
         puzzle_state.initial = parse_sudoku(initial);
         puzzle_state.completed = parse_sudoku(completed);
+    }
+}
+
+/// Fills fixed values from the puzzle into the board
+fn fill_puzzle(
+    puzzle_state: Res<PuzzleState>,
+    mut query: Query<(&Coordinates, &mut Value, &mut FixedValue), With<Cell>>,
+) {
+    // Only run when the puzzle is changed
+    if !puzzle_state.is_changed() {
+        return;
+    }
+
+    for (coordinates, mut value, mut is_fixed) in query.iter_mut() {
+        let initial_value = puzzle_state
+            .initial
+            .get(coordinates)
+            .expect("No values found in puzzle for these coordinates");
+
+        // Fill in cells from initial puzzle and mark non-empty cells as fixed
+        *value = initial_value.clone();
+        is_fixed.0 = !(*initial_value == Value::Empty);
+    }
+}
+
+/// Resets the puzzle to its original state
+fn reset_sudoku(mut event_reader: EventReader<ResetPuzzle>, mut puzzle_state: ResMut<PuzzleState>) {
+    for _ in event_reader.read() {
+        // Flags the puzzle as having changed, causing the fill_puzzle system to reset all values
+        // as if a new identical puzzle had been generated
+        // QUALITY: use an explicit set_changed() method instead once added, see https://github.com/bevyengine/bevy/pull/2208
+        puzzle_state.set_changed();
+    }
+}
+
+/// "Solves" the given Sudoku by looking up the solution
+fn solve_sudoku(
+    mut event_reader: EventReader<SolvePuzzle>,
+    mut puzzle_state: ResMut<PuzzleState>,
+    mut query: Query<(&Coordinates, &mut Value), With<Cell>>,
+) {
+    for _ in event_reader.read() {
+        for (coordinates, mut value) in query.iter_mut() {
+            let correct_value = puzzle_state
+                .completed
+                .get(coordinates)
+                .expect("No values found in puzzle for these coordinates");
+
+            // Fill in cells from initial puzzle and mark those cells as fixed
+            *value = correct_value.clone();
+        }
     }
 }

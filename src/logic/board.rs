@@ -11,7 +11,7 @@ impl Plugin for LogicPlugin {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Component)]
 pub struct Coordinates {
     /// Between 1 and 9, counted from top to bottom
     pub row: u8,
@@ -37,7 +37,7 @@ impl Coordinates {
 }
 
 /// The number(s) marked inside of each cell
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Component)]
 pub enum Value {
     /// No value is filled in this cell
     Empty,
@@ -59,6 +59,13 @@ impl Value {
         }
     }
 }
+
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Hash, Component, Deref, DerefMut)]
+pub struct Cell(pub sudoku::board::Cell);
+
+/// A component that specifies whether digits were provided by the puzzle
+#[derive(Component)]
+pub struct FixedValue(pub bool);
 
 pub mod marks {
     use bevy::utils::HashSet;
