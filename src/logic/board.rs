@@ -3,25 +3,20 @@ use crate::input::input_mode::{
     update_value_center, update_value_corner, update_value_fill, InputMode,
 };
 use crate::input::{CellInput, Selected};
+use crate::CommonSets;
 use bevy::prelude::*;
 
 /// Core data structures and logic for the Sudoku game board
 use self::marks::{CenterMarks, CornerMarks};
 
-#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-enum LogicSet {
-    Input,
-    Action,
-}
-
 pub struct LogicPlugin;
 
 impl Plugin for LogicPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(Update, (LogicSet::Input, LogicSet::Action).chain())
+        app.configure_sets(Update, (CommonSets::Input, CommonSets::Action).chain())
             .add_systems(
                 Update,
-                (handle_clicks, set_cell_value).in_set(LogicSet::Action),
+                (handle_clicks, set_cell_value).in_set(CommonSets::Action),
             );
     }
 }
@@ -75,8 +70,8 @@ impl Value {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Hash, Component, Deref, DerefMut)]
-pub struct Cell(pub sudoku::board::Cell);
+#[derive(Component)]
+pub struct Cell;
 
 /// A component that specifies whether digits were provided by the puzzle
 #[derive(Component)]
@@ -240,7 +235,7 @@ pub fn set_cell_value(
     use InputMode::*;
     // FIXME: match on event's input type to control behavior
     // Existing logic is for Fill only
-    for event in event_reader.iter() {
+    for event in event_reader.read() {
         for (mut old_value, is_fixed) in query.iter_mut() {
             // Don't change the values of cells given by the puzzle
             if is_fixed.0 {

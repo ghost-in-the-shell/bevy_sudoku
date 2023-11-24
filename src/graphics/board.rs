@@ -1,9 +1,10 @@
+use bevy::prelude::*;
+
 /// Build and display the Sudoku board
 use crate::{
     input::Selected,
-    logic::board::{Cell, Coordinates, Fixed, Value},
+    logic::board::{Cell, Coordinates, FixedValue, Value},
 };
-use bevy::prelude::*;
 
 use self::assets::*;
 use self::config::*;
@@ -12,7 +13,12 @@ pub struct BoardPlugin;
 
 impl Plugin for BoardPlugin {
     fn build(&self, app: &mut App) {
-        todo!()
+        app.init_resource::<FixedFont>()
+            .init_resource::<FillableFont>()
+            .init_resource::<BoardBackgroundColor>()
+            .init_resource::<SelectionColor>()
+            .add_systems(PreStartup, setup::spawn_cells)
+            .add_systems(Startup, (setup::spawn_grid, setup::spawn_cell_numbers));
     }
 }
 
@@ -52,18 +58,21 @@ pub mod assets {
     use crate::graphics::BACKGROUND_COLOR;
 
     use super::*;
+
     // Various colors for our cells
     /// The color of the game's background, and the default color of the cells
-    pub struct BackgroundColor(pub Handle<ColorMaterial>);
+    #[derive(Resource)]
+    pub struct BoardBackgroundColor(pub Handle<ColorMaterial>);
     /// The color of cells when selected
+    #[derive(Resource)]
     pub struct SelectionColor(pub Handle<ColorMaterial>);
 
-    impl FromWorld for BackgroundColor {
+    impl FromWorld for BoardBackgroundColor {
         fn from_world(world: &mut World) -> Self {
             let mut materials = world
                 .get_resource_mut::<Assets<ColorMaterial>>()
                 .expect("ResMut<Assets<ColorMaterial>> not found.");
-            BackgroundColor(materials.add(BACKGROUND_COLOR.into()))
+            BoardBackgroundColor(materials.add(BACKGROUND_COLOR.into()))
         }
     }
 
@@ -77,6 +86,7 @@ pub mod assets {
     }
 
     // Fonts used in our game
+    #[derive(Resource)]
     pub struct FixedFont(pub Handle<Font>);
 
     impl FromWorld for FixedFont {
@@ -88,6 +98,7 @@ pub mod assets {
         }
     }
 
+    #[derive(Resource)]
     pub struct FillableFont(pub Handle<Font>);
 
     impl FromWorld for FillableFont {
@@ -102,23 +113,30 @@ pub mod assets {
 
 mod setup {
     use super::*;
+    use bevy::sprite::MaterialMesh2dBundle;
 
-    pub fn spawn_grid(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
+    pub fn spawn_grid(
+        mut commands: Commands,
+        mut materials: ResMut<Assets<ColorMaterial>>,
+        mut meshes: ResMut<Assets<Mesh>>,
+    ) {
         let grid_handle = materials.add(GRID_COLOR.into());
 
         for row in 0..=9 {
-            commands.spawn_bundle(new_gridline(
+            commands.spawn(new_gridline(
                 Orientation::Horizontal,
                 row,
                 grid_handle.clone(),
+                &mut meshes,
             ));
         }
 
         for column in 0..=9 {
-            commands.spawn_bundle(new_gridline(
+            commands.spawn(new_gridline(
                 Orientation::Vertical,
                 column,
                 grid_handle.clone(),
+                &mut meshes,
             ));
         }
     }
@@ -132,7 +150,8 @@ mod setup {
         orientation: Orientation,
         i: u8,
         grid_handle: Handle<ColorMaterial>,
-    ) -> SpriteBundle {
+        mut meshes: &mut ResMut<Assets<Mesh>>,
+    ) -> MaterialMesh2dBundle<ColorMaterial> {
         // The grid lines that define the boxes need to be thicker
         let thickness = if (i % 3) == 0 {
             MAJOR_LINE_THICKNESS
@@ -155,8 +174,8 @@ mod setup {
             Orientation::Vertical => (GRID_LEFT_EDGE + offset, GRID_BOT_EDGE + 0.5 * GRID_SIZE),
         };
 
-        SpriteBundle {
-            sprite: Sprite::new(size),
+        MaterialMesh2dBundle {
+            mesh: meshes.add(Mesh::from(shape::Quad::new(size))).into(),
             // We want these grid lines to cover any cell that it might overlap with
             transform: Transform::from_xyz(x, y, 1.0),
             material: grid_handle,
@@ -167,7 +186,7 @@ mod setup {
     pub fn spawn_cells(mut commands: Commands) {
         for row in 1..=9 {
             for column in 1..=9 {
-                commands.spawn_bundle(CellBundle::new(row, column));
+                commands.spawn(CellBundle::new(row, column));
             }
         }
     }
@@ -177,7 +196,7 @@ mod setup {
         cell: Cell,
         coordinates: Coordinates,
         value: Value,
-        fixed: Fixed,
+        fixed: FixedValue,
         cell_fill: SpriteBundle,
     }
 
@@ -187,7 +206,7 @@ mod setup {
             let y = GRID_BOT_EDGE + CELL_SIZE * column as f32 - 0.5 * CELL_SIZE;
 
             CellBundle {
-                cell: Cell,
+                cell: crate::logic::board::Cell,
                 coordinates: Coordinates {
                     row,
                     column,
@@ -195,10 +214,13 @@ mod setup {
                 },
                 // No digits are filled in to begin with
                 value: Value::Empty,
-                fixed: Fixed(false),
+                fixed: FixedValue(false),
                 cell_fill: SpriteBundle {
                     // The material for this sprite begins with the same material as our background
-                    sprite: Sprite::new(Vec2::new(CELL_SIZE, CELL_SIZE)),
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(CELL_SIZE, CELL_SIZE)),
+                        ..Default::default()
+                    },
                     // We want this cell to be covered by any grid lines that it might overlap with
                     transform: Transform::from_xyz(x, y, 0.0),
                     ..Default::default()
@@ -208,6 +230,7 @@ mod setup {
     }
 
     /// Marker component for the visual representation of a cell's values
+    #[derive(Component)]
     pub struct CellNumber;
 
     // Marker relation to designate that the Value on the source entity (the Cell entity)
@@ -239,86 +262,85 @@ mod setup {
             };
 
             let text_entity = commands
-                .spawn_bundle(Text2dBundle {
+                .spawn(Text2dBundle {
                     // This value begins empty, but then is later set in update_cell_numbers system
                     // to match the cell's `value` field
-                    text: Text::with_section("", text_style.clone(), TEXT_ALIGNMENT),
+                    text: Text::from_section("", text_style.clone()).with_alignment(TEXT_ALIGNMENT),
                     transform: number_transform,
                     ..Default::default()
                 })
                 .insert(CellNumber)
                 .id();
 
-            commands
-                .entity(cell_entity)
-                .insert_relation(DisplayedBy, text_entity);
+            commands.entity(cell_entity);
+            // .insert_relation(DisplayedBy, text_entity);
         }
     }
 }
 
-mod actions {
-    use super::setup::DisplayedBy;
-    use super::*;
-
-    /// Changes the cell displays to match their values
-    pub fn update_cell_numbers(
-        cell_query: Query<(&Value, &Relation<DisplayedBy>), (With<Cell>, Changed<Value>)>,
-        mut num_query: Query<&mut Text>,
-    ) {
-        use Value::*;
-        for (cell_value, displayed_by) in cell_query.iter() {
-            for (num_entity, _) in displayed_by {
-                let mut text = num_query
-                    .get_mut(num_entity)
-                    .expect("No corresponding entity found!");
-
-                // There is only one section in our text
-                text.sections[0].value = match cell_value.clone() {
-                    Filled(n) => n.to_string(),
-                    // TODO: properly display markings
-                    Marked(center, corner) => {
-                        format!("Center: {}", center.to_string())
-                            + "|"
-                            + &format!("Corner: {}", corner.to_string())
-                    }
-                    Empty => "".to_string(),
-                }
-            }
-        }
-    }
-
-    /// Set the background color of selected cells
-    pub fn color_selected(
-        mut query: Query<(Option<&Selected>, &mut Handle<ColorMaterial>), With<Cell>>,
-        background_color: Res<BackgroundColor>,
-        selection_color: Res<SelectionColor>,
-    ) {
-        // QUALITY: use Added and Removed queries to avoid excessive spinning
-        // once https://github.com/bevyengine/bevy/issues/2148 is fixed
-        for (maybe_selected, mut material_handle) in query.iter_mut() {
-            match maybe_selected {
-                Some(_) => *material_handle = selection_color.0.clone(),
-                None => *material_handle = background_color.0.clone(),
-            }
-        }
-    }
-    /// Sets the style of the numbers based on whether or not they're fixed
-    pub fn style_numbers(
-        cell_query: Query<(&Fixed, &Relation<DisplayedBy>), Changed<Fixed>>,
-        mut text_query: Query<&mut Text>,
-        fixed_font_res: Res<FixedFont>,
-        fillable_font_res: Res<FillableFont>,
-    ) {
-        for (is_fixed, displayed_by) in cell_query.iter() {
-            for (text_entity, _) in displayed_by {
-                let mut text = text_query
-                    .get_mut(text_entity)
-                    .expect("Corresponding text entity not found.");
-                text.sections[0].style.font = match is_fixed.0 {
-                    true => fixed_font_res.0.clone(),
-                    false => fillable_font_res.0.clone(),
-                }
-            }
-        }
-    }
-}
+// mod actions {
+//     use super::setup::DisplayedBy;
+//     use super::*;
+//
+//     /// Changes the cell displays to match their values
+//     pub fn update_cell_numbers(
+//         cell_query: Query<(&Value, &Relation<DisplayedBy>), (With<Cell>, Changed<Value>)>,
+//         mut num_query: Query<&mut Text>,
+//     ) {
+//         use Value::*;
+//         for (cell_value, displayed_by) in cell_query.iter() {
+//             for (num_entity, _) in displayed_by {
+//                 let mut text = num_query
+//                     .get_mut(num_entity)
+//                     .expect("No corresponding entity found!");
+//
+//                 // There is only one section in our text
+//                 text.sections[0].value = match cell_value.clone() {
+//                     Filled(n) => n.to_string(),
+//                     // TODO: properly display markings
+//                     Marked(center, corner) => {
+//                         format!("Center: {}", center.to_string())
+//                             + "|"
+//                             + &format!("Corner: {}", corner.to_string())
+//                     }
+//                     Empty => "".to_string(),
+//                 }
+//             }
+//         }
+//     }
+//
+//     /// Set the background color of selected cells
+//     pub fn color_selected(
+//         mut query: Query<(Option<&Selected>, &mut Handle<ColorMaterial>), With<Cell>>,
+//         background_color: Res<BackgroundColor>,
+//         selection_color: Res<SelectionColor>,
+//     ) {
+//         // QUALITY: use Added and Removed queries to avoid excessive spinning
+//         // once https://github.com/bevyengine/bevy/issues/2148 is fixed
+//         for (maybe_selected, mut material_handle) in query.iter_mut() {
+//             match maybe_selected {
+//                 Some(_) => *material_handle = selection_color.0.clone(),
+//                 None => *material_handle = background_color.0.clone(),
+//             }
+//         }
+//     }
+//     /// Sets the style of the numbers based on whether or not they're fixed
+//     pub fn style_numbers(
+//         cell_query: Query<(&Fixed, &Relation<DisplayedBy>), Changed<Fixed>>,
+//         mut text_query: Query<&mut Text>,
+//         fixed_font_res: Res<FixedFont>,
+//         fillable_font_res: Res<FillableFont>,
+//     ) {
+//         for (is_fixed, displayed_by) in cell_query.iter() {
+//             for (text_entity, _) in displayed_by {
+//                 let mut text = text_query
+//                     .get_mut(text_entity)
+//                     .expect("Corresponding text entity not found.");
+//                 text.sections[0].style.font = match is_fixed.0 {
+//                     true => fixed_font_res.0.clone(),
+//                     false => fillable_font_res.0.clone(),
+//                 }
+//             }
+//         }
+//     }
+// }
