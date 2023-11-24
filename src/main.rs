@@ -10,6 +10,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, graphics::spawn_cameras)
         .add_plugins(graphics::board::BoardPlugin)
+        .add_plugins(graphics::buttons::BoardButtonsPlugin)
         .add_plugins(input::InteractionPlugin)
         .add_plugins(logic::board::LogicPlugin)
         .add_plugins(logic::sudoku_generator::GeneratorPlugin)

@@ -26,7 +26,7 @@ impl Plugin for InteractionPlugin {
 pub struct Selected;
 
 /// Events that change the value stored in a cell
-#[derive(Clone, Event)]
+#[derive(Clone, Event, Component)]
 pub struct CellInput {
     pub num: u8,
 }

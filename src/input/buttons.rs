@@ -3,13 +3,13 @@ use bevy::{ecs::component::Component, prelude::*};
 use super::input_mode::InputMode;
 
 /// Marker component for NewPuzzle button
-#[derive(Default, Clone, Event)]
+#[derive(Default, Clone, Event, Component)]
 pub struct NewPuzzle;
 /// Marker component for ResetPuzzle button
-#[derive(Default, Clone, Event)]
+#[derive(Default, Clone, Event, Component)]
 pub struct ResetPuzzle;
 /// Marker component for SolvePuzzle button
-#[derive(Default, Clone, Event)]
+#[derive(Default, Clone, Event, Component)]
 pub struct SolvePuzzle;
 
 /// Sends the event type associated with the button when pressed

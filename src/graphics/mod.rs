@@ -1,6 +1,7 @@
 /// Display the Sudoku game
 pub mod board;
-// pub mod buttons;
+pub mod buttons;
+
 use bevy::prelude::*;
 
 pub const BACKGROUND_COLOR: Color = Color::rgb(1.0, 1.0, 1.0);
