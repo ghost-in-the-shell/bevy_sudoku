@@ -1,3 +1,4 @@
+use crate::input::buttons::{NewPuzzle, ResetPuzzle, SolvePuzzle};
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use sudoku::Sudoku;
@@ -9,24 +10,11 @@ pub struct GeneratorPlugin;
 impl Plugin for GeneratorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PuzzleState>()
-            .add_event::<NewPuzzle>()
-            .add_event::<ResetPuzzle>()
-            .add_event::<SolvePuzzle>()
             .add_systems(Startup, first_sudoku)
             .add_systems(Update, (generate_sudoku, fill_puzzle).chain())
             .add_systems(Update, (reset_sudoku, solve_sudoku));
     }
 }
-
-/// Marker component for NewPuzzle
-#[derive(Default, Clone, Event)]
-pub struct NewPuzzle;
-/// Marker component for ResetPuzzle
-#[derive(Default, Clone, Event)]
-pub struct ResetPuzzle;
-/// Marker component for SolvePuzzle
-#[derive(Default, Clone, Event)]
-pub struct SolvePuzzle;
 
 #[derive(Default, Resource)]
 struct PuzzleState {
