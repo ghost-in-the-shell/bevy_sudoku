@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use crate::{
     input::Selected,
     logic::board::{Cell, Coordinates, FixedValue, Value},
+    CommonSets,
 };
 
 use self::assets::*;
@@ -18,7 +19,16 @@ impl Plugin for BoardPlugin {
             .init_resource::<BoardBackgroundColor>()
             .init_resource::<SelectionColor>()
             .add_systems(PreStartup, setup::spawn_cells)
-            .add_systems(Startup, (setup::spawn_grid, setup::spawn_cell_numbers));
+            .add_systems(Startup, (setup::spawn_grid, setup::spawn_cell_numbers))
+            .add_systems(
+                Update,
+                (
+                    actions::update_cell_numbers,
+                    actions::color_selected,
+                    actions::style_numbers,
+                )
+                    .in_set(CommonSets::Action),
+            );
     }
 }
 
@@ -112,8 +122,9 @@ pub mod assets {
 }
 
 mod setup {
-    use super::*;
     use bevy::sprite::MaterialMesh2dBundle;
+
+    use super::*;
 
     pub fn spawn_grid(
         mut commands: Commands,
@@ -150,7 +161,7 @@ mod setup {
         orientation: Orientation,
         i: u8,
         grid_handle: Handle<ColorMaterial>,
-        mut meshes: &mut ResMut<Assets<Mesh>>,
+        meshes: &mut ResMut<Assets<Mesh>>,
     ) -> MaterialMesh2dBundle<ColorMaterial> {
         // The grid lines that define the boxes need to be thicker
         let thickness = if (i % 3) == 0 {
@@ -206,7 +217,7 @@ mod setup {
             let y = GRID_BOT_EDGE + CELL_SIZE * column as f32 - 0.5 * CELL_SIZE;
 
             CellBundle {
-                cell: crate::logic::board::Cell,
+                cell: Cell,
                 coordinates: Coordinates {
                     row,
                     column,
@@ -235,7 +246,11 @@ mod setup {
 
     // Marker relation to designate that the Value on the source entity (the Cell entity)
     // is displayed by the target entity (the Text2d entity in the same location)
-    pub struct DisplayedBy;
+    #[derive(Component)]
+    pub struct DisplayedBy {
+        pub cell: Entity,
+        pub text: Entity,
+    }
 
     /// Adds a text number associated with each cell to display its value
     pub fn spawn_cell_numbers(
@@ -272,75 +287,75 @@ mod setup {
                 .insert(CellNumber)
                 .id();
 
-            commands.entity(cell_entity);
+            commands.entity(cell_entity).insert(DisplayedBy {
+                cell: cell_entity,
+                text: text_entity,
+            });
             // .insert_relation(DisplayedBy, text_entity);
         }
     }
 }
 
-// mod actions {
-//     use super::setup::DisplayedBy;
-//     use super::*;
-//
-//     /// Changes the cell displays to match their values
-//     pub fn update_cell_numbers(
-//         cell_query: Query<(&Value, &Relation<DisplayedBy>), (With<Cell>, Changed<Value>)>,
-//         mut num_query: Query<&mut Text>,
-//     ) {
-//         use Value::*;
-//         for (cell_value, displayed_by) in cell_query.iter() {
-//             for (num_entity, _) in displayed_by {
-//                 let mut text = num_query
-//                     .get_mut(num_entity)
-//                     .expect("No corresponding entity found!");
-//
-//                 // There is only one section in our text
-//                 text.sections[0].value = match cell_value.clone() {
-//                     Filled(n) => n.to_string(),
-//                     // TODO: properly display markings
-//                     Marked(center, corner) => {
-//                         format!("Center: {}", center.to_string())
-//                             + "|"
-//                             + &format!("Corner: {}", corner.to_string())
-//                     }
-//                     Empty => "".to_string(),
-//                 }
-//             }
-//         }
-//     }
-//
-//     /// Set the background color of selected cells
-//     pub fn color_selected(
-//         mut query: Query<(Option<&Selected>, &mut Handle<ColorMaterial>), With<Cell>>,
-//         background_color: Res<BackgroundColor>,
-//         selection_color: Res<SelectionColor>,
-//     ) {
-//         // QUALITY: use Added and Removed queries to avoid excessive spinning
-//         // once https://github.com/bevyengine/bevy/issues/2148 is fixed
-//         for (maybe_selected, mut material_handle) in query.iter_mut() {
-//             match maybe_selected {
-//                 Some(_) => *material_handle = selection_color.0.clone(),
-//                 None => *material_handle = background_color.0.clone(),
-//             }
-//         }
-//     }
-//     /// Sets the style of the numbers based on whether or not they're fixed
-//     pub fn style_numbers(
-//         cell_query: Query<(&Fixed, &Relation<DisplayedBy>), Changed<Fixed>>,
-//         mut text_query: Query<&mut Text>,
-//         fixed_font_res: Res<FixedFont>,
-//         fillable_font_res: Res<FillableFont>,
-//     ) {
-//         for (is_fixed, displayed_by) in cell_query.iter() {
-//             for (text_entity, _) in displayed_by {
-//                 let mut text = text_query
-//                     .get_mut(text_entity)
-//                     .expect("Corresponding text entity not found.");
-//                 text.sections[0].style.font = match is_fixed.0 {
-//                     true => fixed_font_res.0.clone(),
-//                     false => fillable_font_res.0.clone(),
-//                 }
-//             }
-//         }
-//     }
-// }
+mod actions {
+    use super::setup::DisplayedBy;
+    use super::*;
+
+    /// Changes the cell displays to match their values
+    pub fn update_cell_numbers(
+        cell_query: Query<(&Value, &DisplayedBy), (With<Cell>, Changed<Value>)>,
+        mut num_query: Query<&mut Text>,
+    ) {
+        use Value::*;
+        for (cell_value, displayed_by) in cell_query.iter() {
+            let mut text = num_query
+                .get_mut(displayed_by.text)
+                .expect("No corresponding entity found!");
+
+            // There is only one section in our text
+            text.sections[0].value = match cell_value.clone() {
+                Filled(n) => n.to_string(),
+                // TODO: properly display markings
+                Marked(center, corner) => {
+                    format!("Center: {}", center.to_string())
+                        + "|"
+                        + &format!("Corner: {}", corner.to_string())
+                }
+                Empty => "".to_string(),
+            }
+        }
+    }
+
+    /// Set the background color of selected cells
+    pub fn color_selected(
+        mut query: Query<(Option<&Selected>, &mut Handle<ColorMaterial>), With<Cell>>,
+        background_color: Res<BoardBackgroundColor>,
+        selection_color: Res<SelectionColor>,
+    ) {
+        // QUALITY: use Added and Removed queries to avoid excessive spinning
+        // once https://github.com/bevyengine/bevy/issues/2148 is fixed
+        for (maybe_selected, mut material_handle) in query.iter_mut() {
+            match maybe_selected {
+                Some(_) => *material_handle = selection_color.0.clone(),
+                None => *material_handle = background_color.0.clone(),
+            }
+        }
+    }
+
+    /// Sets the style of the numbers based on whether or not they're fixed
+    pub fn style_numbers(
+        cell_query: Query<(&FixedValue, &DisplayedBy), Changed<FixedValue>>,
+        mut text_query: Query<&mut Text>,
+        fixed_font_res: Res<FixedFont>,
+        fillable_font_res: Res<FillableFont>,
+    ) {
+        for (is_fixed, displayed_by) in cell_query.iter() {
+            let mut text = text_query
+                .get_mut(displayed_by.text)
+                .expect("Corresponding text entity not found.");
+            text.sections[0].style.font = match is_fixed.0 {
+                true => fixed_font_res.0.clone(),
+                false => fillable_font_res.0.clone(),
+            }
+        }
+    }
+}
