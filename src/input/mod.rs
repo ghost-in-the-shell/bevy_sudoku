@@ -1,3 +1,4 @@
+use crate::CommonSet;
 use bevy::prelude::*;
 
 pub mod board;
@@ -17,7 +18,33 @@ impl Plugin for InteractionPlugin {
             .add_event::<CellInput>()
             .init_resource::<keyboard::cell_input::CellInputMap>()
             .init_resource::<board::cell_index::CellIndex>()
-            .init_resource::<input_mode::InputMode>();
+            .init_resource::<input_mode::InputMode>()
+            // BOARD
+            .add_systems(PreUpdate, board::cell_index::index_cells)
+            // BUTTONS
+            .add_systems(
+                Update,
+                (
+                    board::cell_click,
+                    buttons::puzzle_button::<buttons::NewPuzzle>,
+                    buttons::puzzle_button::<buttons::ResetPuzzle>,
+                    buttons::puzzle_button::<buttons::SolvePuzzle>,
+                    buttons::puzzle_button::<CellInput>,
+                    buttons::input_mode_buttons,
+                )
+                    .in_set(CommonSet::Input),
+            )
+            // KEYBOARD
+            .add_systems(
+                Update,
+                (
+                    keyboard::select_all,
+                    keyboard::cell_input::cell_keyboard_input,
+                    keyboard::erase_selected_cells,
+                    keyboard::swap_input_mode,
+                )
+                    .in_set(CommonSet::Input),
+            );
     }
 }
 

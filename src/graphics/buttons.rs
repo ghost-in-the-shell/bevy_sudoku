@@ -13,14 +13,19 @@ pub struct BoardButtonsPlugin;
 // QUALITY: use system sets for clarity
 impl Plugin for BoardButtonsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ButtonMaterials<NewPuzzle>>()
+        app
+            // ASSETS
+            .init_resource::<ButtonMaterials<NewPuzzle>>()
             .init_resource::<ButtonMaterials<ResetPuzzle>>()
             .init_resource::<ButtonMaterials<SolvePuzzle>>()
             .init_resource::<ButtonMaterials<InputMode>>()
             .init_resource::<ButtonMaterials<CellInput>>()
             .init_resource::<NoneColor>()
+            // SETUP
+            // Must be complete before we can spawn buttons
             .add_systems(PreStartup, setup::spawn_layout_boxes)
             .add_systems(Startup, setup::spawn_buttons)
+            // ACTIONS
             .add_systems(Update, actions::responsive_buttons)
             .add_systems(
                 Update,

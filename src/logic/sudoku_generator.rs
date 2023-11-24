@@ -104,7 +104,7 @@ fn reset_sudoku(mut event_reader: EventReader<ResetPuzzle>, mut puzzle_state: Re
 /// "Solves" the given Sudoku by looking up the solution
 fn solve_sudoku(
     mut event_reader: EventReader<SolvePuzzle>,
-    mut puzzle_state: ResMut<PuzzleState>,
+    puzzle_state: ResMut<PuzzleState>,
     mut query: Query<(&Coordinates, &mut Value), With<Cell>>,
 ) {
     for _ in event_reader.read() {

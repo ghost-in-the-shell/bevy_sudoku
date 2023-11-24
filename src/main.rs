@@ -19,7 +19,7 @@ fn main() {
 }
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-enum CommonSets {
+enum CommonSet {
     Input,
     Action,
 }

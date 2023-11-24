@@ -3,7 +3,7 @@ use crate::input::input_mode::{
     update_value_center, update_value_corner, update_value_fill, InputMode,
 };
 use crate::input::{CellInput, Selected};
-use crate::CommonSets;
+use crate::CommonSet;
 use bevy::prelude::*;
 
 /// Core data structures and logic for the Sudoku game board
@@ -13,10 +13,10 @@ pub struct LogicPlugin;
 
 impl Plugin for LogicPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(Update, (CommonSets::Input, CommonSets::Action).chain())
+        app.configure_sets(Update, (CommonSet::Input, CommonSet::Action).chain())
             .add_systems(
                 Update,
-                (handle_clicks, set_cell_value).in_set(CommonSets::Action),
+                (handle_clicks, set_cell_value).in_set(CommonSet::Action),
             );
     }
 }

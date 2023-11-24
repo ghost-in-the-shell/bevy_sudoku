@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::{
     input::Selected,
     logic::board::{Cell, Coordinates, FixedValue, Value},
-    CommonSets,
+    CommonSet,
 };
 
 use self::assets::*;
@@ -27,7 +27,7 @@ impl Plugin for BoardPlugin {
                     actions::color_selected,
                     actions::style_numbers,
                 )
-                    .in_set(CommonSets::Action),
+                    .in_set(CommonSet::Action),
             );
     }
 }
