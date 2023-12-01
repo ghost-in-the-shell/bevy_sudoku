@@ -30,20 +30,33 @@ fn game_setup(mut commands: Commands) {
             ..default()
         })
         .with_children(|builder| {
-            builder.spawn((
-                NodeBundle {
-                    style: Style {
-                        height: Val::Percent(100.0),
-                        aspect_ratio: Some(1.0),
-                        display: Display::Grid,
-                        grid_column: GridPlacement::span(1),
+            builder
+                .spawn((
+                    NodeBundle {
+                        style: Style {
+                            height: Val::Percent(100.0),
+                            aspect_ratio: Some(1.0),
+                            display: Display::Grid,
+                            // grid_column: GridPlacement::span(1),
+                            padding: UiRect::all(Val::Px(12.0)),
+                            grid_template_columns: RepeatedGridTrack::flex(9, 1.0),
+                            grid_template_rows: RepeatedGridTrack::flex(9, 1.0),
+                            // row_gap: Val::Px(1.0),
+                            // column_gap: Val::Px(1.0),
+                            ..default()
+                        },
+                        background_color: BackgroundColor(Color::DARK_GRAY),
                         ..default()
                     },
-
-                    ..default()
-                },
-                GameGrid::Left,
-            ));
+                    GameGrid::Board,
+                ))
+                .with_children(|builder| {
+                    for row in 1..=9 {
+                        for column in 1..=9 {
+                            board::setup::spawn_cell(builder, row, column)
+                        }
+                    }
+                });
 
             builder.spawn((
                 NodeBundle {
@@ -62,7 +75,7 @@ fn game_setup(mut commands: Commands) {
 
 #[derive(Component)]
 pub enum GameGrid {
-    Left,
+    Board,
     Right,
 }
 

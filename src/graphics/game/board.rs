@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
-/// Build and display the Sudoku board
+use crate::graphics::game::game_setup;
+use crate::logic::GameState;
 use crate::{
     input::Selected,
     logic::board::{Cell, Coordinates, FixedValue, Value},
-    CommonSet,
 };
 
 use self::assets::*;
@@ -18,18 +18,32 @@ impl Plugin for BoardPlugin {
             .init_resource::<FillableFont>()
             .init_resource::<BoardBackgroundColor>()
             .init_resource::<SelectionColor>()
-            .add_systems(PreStartup, setup::spawn_cells)
-            .add_systems(Startup, (setup::spawn_grid, setup::spawn_cell_numbers))
-            .add_systems(
-                Update,
-                (
-                    actions::update_cell_numbers,
-                    actions::color_selected,
-                    actions::style_numbers,
-                )
-                    .in_set(CommonSet::Action),
-            );
+            // .add_systems(OnEnter(GameState::Game), setup::spawn_cells.after(game_setup))
+            // .add_systems(Startup, (setup::spawn_grid, setup::spawn_cell_numbers))
+            // .add_systems(
+            //     Update,
+            //     (
+            //         actions::update_cell_numbers,
+            //         actions::color_selected,
+            //         actions::style_numbers,
+            //     )
+            //         .in_set(CommonSet::Action),
+            // );
+        ;
     }
+}
+
+pub(crate) fn spawn_board_layout(parent: &mut ChildBuilder, row: u8, column: u8) {
+    parent.spawn(NodeBundle {
+        style: Style {
+            height: Val::Percent(100.0),
+            width: Val::Percent(100.0),
+            display: Display::Grid,
+
+            ..default()
+        },
+        ..default()
+    });
 }
 
 mod config {
@@ -121,7 +135,7 @@ pub mod assets {
     }
 }
 
-mod setup {
+pub(crate) mod setup {
     use bevy::sprite::MaterialMesh2dBundle;
 
     use super::*;
@@ -202,8 +216,27 @@ mod setup {
         }
     }
 
+    pub fn spawn_cell(builder: &mut ChildBuilder, row: u8, column: u8) {
+        builder
+            .spawn(NodeBundle {
+                style: Style {
+                    display: Display::Grid,
+                    padding: UiRect::all(Val::Px(1.0)),
+                    ..default()
+                },
+                // background_color: BackgroundColor(Color::BLACK),
+                ..default()
+            })
+            .with_children(|builder| {
+                builder.spawn(NodeBundle {
+                    background_color: BackgroundColor(Color::BEIGE),
+                    ..default()
+                });
+            });
+    }
+
     #[derive(Bundle)]
-    struct CellBundle {
+    pub(crate) struct CellBundle {
         cell: Cell,
         coordinates: Coordinates,
         value: Value,
