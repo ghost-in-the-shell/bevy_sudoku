@@ -2,6 +2,7 @@
 use super::board::assets::FixedFont;
 use crate::input::buttons::{NewPuzzle, ResetPuzzle, SolvePuzzle};
 use crate::input::{input_mode::InputMode, CellInput};
+use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::{ecs::component::Component, prelude::*};
 use std::marker::PhantomData;
 
@@ -20,6 +21,7 @@ impl Plugin for BoardButtonsPlugin {
             .init_resource::<ButtonMaterials<SolvePuzzle>>()
             .init_resource::<ButtonMaterials<InputMode>>()
             .init_resource::<ButtonMaterials<CellInput>>()
+            .add_plugins(UiMaterialPlugin::<CustomUiMaterial>::default())
             .init_resource::<NoneColor>()
             // SETUP
             // Must be complete before we can spawn buttons
@@ -52,14 +54,16 @@ mod assets {
     use super::*;
     /// The null, transparent color
     #[derive(Resource)]
-    pub struct NoneColor(pub Handle<ColorMaterial>);
+    pub struct NoneColor(pub Handle<CustomUiMaterial>);
 
     impl FromWorld for NoneColor {
         fn from_world(world: &mut World) -> Self {
             let mut materials = world
-                .get_resource_mut::<Assets<ColorMaterial>>()
-                .expect("ResMut<Assets<ColorMaterial>> not found.");
-            NoneColor(materials.add(Color::NONE.into()))
+                .get_resource_mut::<Assets<CustomUiMaterial>>()
+                .expect("ResMut<Assets<CustomUiMaterial>> not found.");
+            NoneColor(materials.add(CustomUiMaterial {
+                color: Color::NONE.into(),
+            }))
         }
     }
 
@@ -217,14 +221,15 @@ mod setup {
     pub fn spawn_layout_boxes(mut commands: Commands, none_color: Res<NoneColor>) {
         // Global root node
         commands
-            .spawn(NodeBundle {
+            .spawn(MaterialNodeBundle {
                 style: Style {
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
-
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
                     ..Default::default()
                 },
-                // material: none_color.0.clone(), FIXME
+                material: none_color.0.clone(),
                 ..Default::default()
             })
             .with_children(|parent| {
@@ -463,5 +468,17 @@ mod actions {
                 }
             }
         }
+    }
+}
+
+#[derive(AsBindGroup, Asset, TypePath, Debug, Clone)]
+pub struct CustomUiMaterial {
+    #[uniform(0)]
+    pub color: Vec4,
+}
+
+impl UiMaterial for CustomUiMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/custom_material.wgsl".into()
     }
 }

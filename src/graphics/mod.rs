@@ -1,8 +1,7 @@
-/// Display the Sudoku game
-pub mod board;
-pub mod buttons;
-
 use bevy::prelude::*;
+
+pub mod game;
+pub mod menu;
 
 pub const BACKGROUND_COLOR: Color = Color::rgb(1.0, 1.0, 1.0);
 
@@ -14,7 +13,9 @@ pub struct MainCamera;
 #[derive(Component)]
 pub struct UiCamera;
 
-/// Adds cameras to our game
-pub fn spawn_cameras(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default()).insert(MainCamera);
+// Generic system that takes a component as a parameter, and will despawn all entities with that component
+fn despawn_screen<T: Component>(to_despawn: Query<Entity, With<T>>, mut commands: Commands) {
+    for entity in &to_despawn {
+        commands.entity(entity).despawn_recursive();
+    }
 }

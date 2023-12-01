@@ -3,6 +3,7 @@ use crate::input::input_mode::{
     update_value_center, update_value_corner, update_value_fill, InputMode,
 };
 use crate::input::{CellInput, Selected};
+use crate::logic::GameState;
 use crate::CommonSet;
 use bevy::prelude::*;
 
@@ -13,11 +14,13 @@ pub struct LogicPlugin;
 
 impl Plugin for LogicPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(Update, (CommonSet::Input, CommonSet::Action).chain())
-            .add_systems(
-                Update,
-                (handle_clicks, set_cell_value).in_set(CommonSet::Action),
-            );
+        app.add_state::<GameState>()
+            // .configure_sets(Update, (CommonSet::Input, CommonSet::Action).chain())
+            // .add_systems(
+            //     Update,
+            //     (handle_clicks, set_cell_value).in_set(CommonSet::Action),
+            // )
+        ;
     }
 }
 
